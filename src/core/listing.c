@@ -1,4 +1,5 @@
 #include "listing.h"
+#include "fileops.h"
 #include "html.h"
 #include "path.h"
 #include "url.h"
@@ -108,6 +109,8 @@ int listing_render(const char *root, const char *rel, char *out, size_t outsz)
     while ((de = readdir(d)) != NULL) {
         int len;
         if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+            continue;
+        if (fileops_is_tmp_name(de->d_name))
             continue;
         len = snprintf(full, sizeof full, "%s/%s", dir, de->d_name);
         if (len < 0 || (size_t)len >= sizeof full)
