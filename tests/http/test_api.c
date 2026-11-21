@@ -49,6 +49,13 @@ int main(void)
     /* страница и фрагмент */
     CHECK(call(&r, "GET", "/", "", "", 0) == 200);
     CHECK(has(&r, "<!doctype html>") && has(&r, "/static/htmx.min.js"));
+    CHECK(has(&r, "/static/app.js") && has(&r, "/static/app.css"));
+    CHECK(has(&r, "id=\"msg\"") && has(&r, "id=\"file\"") && has(&r, "id=\"prog\""));
+    CHECK(has(&r, "allowEval"));
+    CHECK(has(&r, "Выбрать файлы") && has(&r, "перетащи файлы сюда"));   /* UTF-8 не искажён */
+    CHECK(has(&r, "Создать папку") && has(&r, "Имя новой папки"));
+    CHECK(has(&r, "class=\"mkdir\"") && has(&r, "id=\"drop\"") && has(&r, "</main>"));
+    CHECK(!has(&r, "<script>"));                                   /* без inline-скриптов */
     CHECK(has(&r, "<table") && has(&r, "hx-post=\"/mkdir\"") && has(&r, "name=\"dir\" value=\"\""));
     CHECK(r.ctype && strstr(r.ctype, "text/html"));
     CHECK(r.len == strlen(r.body));

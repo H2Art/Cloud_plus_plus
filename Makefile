@@ -22,6 +22,8 @@ TESTS    := $(patsubst tests/%.c,$(BUILD)/tests/%,$(TEST_SRC))
 .PHONY: test clean
 test: $(TESTS)
 > @for t in $(TESTS); do $$t || exit 1; done
+> @if command -v node >/dev/null 2>&1; then node tests/js/test_app.js || exit 1; \
+>  else echo "node not found: JS tests skipped"; fi
 
 $(BUILD)/core/%.o: src/core/%.c $(CORE_HDR)
 > @mkdir -p $(dir $@)

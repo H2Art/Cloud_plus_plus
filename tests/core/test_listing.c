@@ -72,6 +72,8 @@ int main(void)
     CHECK(strstr(out, ">0 B<") != NULL);
     CHECK(strstr(out, "1970-01-01 00:00") != NULL);
     CHECK(strstr(out, "hx-delete=\"/rm?p=b.txt\"") != NULL);
+    CHECK(strstr(out, "class=\"del\"") != NULL && strstr(out, "title=\"Удалить\"") != NULL);
+    CHECK(strstr(out, "hx-confirm=\"Удалить?\">\xE2\x9C\x95</button>") != NULL);
     CHECK(strstr(out, ">..</a>") == NULL);          /* в корне нет "вверх" */
     CHECK(strstr(out, "evil") == NULL);             /* симлинк скрыт */
 

@@ -16,9 +16,19 @@
 static const char *PAGE_HEAD =
     "<!doctype html>\n<html lang=\"ru\"><head><meta charset=\"utf-8\">\n"
     "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
-    "<title>Cloud</title>\n<script src=\"/static/htmx.min.js\"></script>\n"
-    "</head><body>\n<h1>Cloud</h1>\n<div id=\"list\">\n";
-static const char *PAGE_TAIL = "</div>\n</body></html>\n";
+    "<meta name=\"htmx-config\" content='{\"allowEval\":false}'>\n"
+    "<title>Cloud</title>\n<link rel=\"stylesheet\" href=\"/static/app.css\">\n"
+    "<script src=\"/static/htmx.min.js\"></script>\n"
+    "<script src=\"/static/app.js\" defer></script>\n"
+    "</head><body>\n<header class=\"top\"><h1>\xE2\x98\x81 Cloud</h1></header>\n<main>\n"
+    "<div id=\"msg\" role=\"alert\"></div>\n"
+    "<div id=\"drop\">"
+    "<input type=\"file\" id=\"file\" multiple>"
+    "<label class=\"btn\" for=\"file\">\xE2\xAC\x86 \xD0\x92\xD1\x8B\xD0\xB1\xD1\x80\xD0\xB0\xD1\x82\xD1\x8C \xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB\xD1\x8B</label>"
+    "<p class=\"hint\">\xD0\xB8\xD0\xBB\xD0\xB8 \xD0\xBF\xD0\xB5\xD1\x80\xD0\xB5\xD1\x82\xD0\xB0\xD1\x89\xD0\xB8 \xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB\xD1\x8B \xD1\x81\xD1\x8E\xD0\xB4\xD0\xB0</p>\n"
+    "<progress id=\"prog\" max=\"100\" value=\"0\" hidden></progress>"
+    "<span id=\"proginfo\"></span></div>\n<div id=\"list\">\n";
+static const char *PAGE_TAIL = "</div>\n</main>\n</body></html>\n";
 
 void api_resp_free(api_resp *r)
 {
@@ -124,10 +134,10 @@ static void respond_dir(api_resp *r, const char *root, const char *dir, int full
     }
     n = strlen(buf);
     rc = snprintf(buf + n, LIST_MAX - n,
-        "<form hx-post=\"/mkdir\" hx-target=\"#list\">"
+        "<form class=\"mkdir\" hx-post=\"/mkdir\" hx-target=\"#list\">"
         "<input type=\"hidden\" name=\"dir\" value=\"%s\">"
-        "<input name=\"name\" placeholder=\"New folder\" required>"
-        "<button type=\"submit\">Create folder</button></form>\n", esc);
+        "<input name=\"name\" placeholder=\"\xD0\x98\xD0\xBC\xD1\x8F \xD0\xBD\xD0\xBE\xD0\xB2\xD0\xBE\xD0\xB9 \xD0\xBF\xD0\xB0\xD0\xBF\xD0\xBA\xD0\xB8\" required>"
+        "<button type=\"submit\">\xD0\xA1\xD0\xBE\xD0\xB7\xD0\xB4\xD0\xB0\xD1\x82\xD1\x8C \xD0\xBF\xD0\xB0\xD0\xBF\xD0\xBA\xD1\x83</button></form>\n", esc);
     if (rc < 0 || (size_t)rc >= LIST_MAX - n) {
         free(buf);
         text(r, 500, "directory too large");

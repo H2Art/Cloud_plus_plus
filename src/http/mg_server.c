@@ -4,11 +4,14 @@
 #include "http/api.h"
 #include "http/limits.h"
 #include "http/ups.h"
+#include "core/path.h"
 #include "mongoose.h"
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define MAX_URI    2048
 #define MAX_QUERY  12288
@@ -39,6 +42,33 @@ static void reply_text(struct mg_connection *c, int status, const char *msg)
     mg_http_reply(c, status,
                   "Content-Type: text/plain; charset=utf-8\r\n" SEC_HEADERS,
                   "%s", msg);
+}
+
+struct srv_cfg {
+    const char *root;
+    const char *static_dir;   /* NULL: статику отдаёт nginx */
+};
+
+/* Отдаёт файл из static_dir (только GET, только обычные файлы внутри каталога). */
+static void serve_static(struct mg_connection *c, struct mg_http_message *hm,
+                         const char *dir, const char *rel, const char *method)
+{
+    char path[PATH_MAX];
+    struct stat st;
+    struct mg_http_serve_opts opts;
+
+    if (strcmp(method, "GET") != 0) {
+        reply_text(c, 405, "method not allowed");
+        return;
+    }
+    if (path_resolve(dir, rel, path, sizeof path) != PATH_OK ||
+        stat(path, &st) != 0 || !S_ISREG(st.st_mode)) {
+        reply_text(c, 404, "not found");
+        return;
+    }
+    memset(&opts, 0, sizeof opts);
+    opts.extra_headers = "X-Content-Type-Options: nosniff\r\n";
+    mg_http_serve_file(c, hm, path, &opts);
 }
 
 /* Состояние одной потоковой загрузки. Выделяется до mg_http_stream_body и
@@ -99,7 +129,7 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
 {
     struct mg_http_message *hm;
     const struct mg_str *hxh;
-    const char *root;
+    const struct srv_cfg *cfg;
     char method[16], uri[MAX_URI], query[MAX_QUERY], body[MAX_BODY], hdr[512];
     api_resp r;
     int hx;
@@ -114,7 +144,7 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
                 reply_text(c, 500, "out of memory");
                 return;
             }
-            ctx->root = (const char *)c->fn_data;
+            ctx->root = ((const struct srv_cfg *)c->fn_data)->root;
             mg_http_stream_body(c, hm, on_upload, ctx);
         }
         return;
@@ -122,7 +152,7 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
     if (ev != MG_EV_HTTP_MSG)
         return;
     hm = (struct mg_http_message *)ev_data;
-    root = (const char *)c->fn_data;
+    cfg = (const struct srv_cfg *)c->fn_data;
 
     if (!copy_str(&hm->method, method, sizeof method) ||
         !copy_str(&hm->uri, uri, sizeof uri) ||
@@ -138,7 +168,12 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
     hxh = mg_http_get_header(hm, "HX-Request");
     hx = hxh != NULL && hxh->len == 4 && memcmp(hxh->buf, "true", 4) == 0;
 
-    api_dispatch(root, method, uri, query, body, hx, &r);
+    if (cfg->static_dir != NULL && strncmp(uri, "/static/", 8) == 0) {
+        serve_static(c, hm, cfg->static_dir, uri + 8, method);
+        return;
+    }
+
+    api_dispatch(cfg->root, method, uri, query, body, hx, &r);
 
     snprintf(hdr, sizeof hdr, "Content-Type: %s\r\n" SEC_HEADERS,
              r.ctype ? r.ctype : "text/plain");
@@ -146,13 +181,18 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
     api_resp_free(&r);
 }
 
-int server_run(const char *root, const char *listen_url, volatile sig_atomic_t *stop)
+int server_run(const char *root, const char *static_dir, const char *listen_url,
+               volatile sig_atomic_t *stop)
 {
     struct mg_mgr mgr;
+    struct srv_cfg cfg;
+
+    cfg.root = root;
+    cfg.static_dir = static_dir;
 
     mg_mgr_init(&mgr);
     mg_log_set(MG_LL_INFO);
-    if (mg_http_listen(&mgr, listen_url, on_event, (void *)root) == NULL) {
+    if (mg_http_listen(&mgr, listen_url, on_event, &cfg) == NULL) {
         fprintf(stderr, "cloud: cannot listen on %s\n", listen_url);
         mg_mgr_free(&mgr);
         return -1;

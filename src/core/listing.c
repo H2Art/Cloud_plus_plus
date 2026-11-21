@@ -192,9 +192,9 @@ int listing_render(const char *root, const char *rel, char *out, size_t outsz)
         else
             snprintf(tbuf, sizeof tbuf, "-");
         sb_add(&b, tbuf);
-        sb_add(&b, "</td><td><button hx-delete=\"/rm?p=");
+        sb_add(&b, "</td><td><button class=\"del\" title=\"\xD0\xA3\xD0\xB4\xD0\xB0\xD0\xBB\xD0\xB8\xD1\x82\xD1\x8C\" aria-label=\"\xD0\xA3\xD0\xB4\xD0\xB0\xD0\xBB\xD0\xB8\xD1\x82\xD1\x8C\" hx-delete=\"/rm?p=");
         sb_add(&b, enc);
-        sb_add(&b, "\" hx-target=\"#list\" hx-confirm=\"Delete?\">x</button></td></tr>\n");
+        sb_add(&b, "\" hx-target=\"#list\" hx-confirm=\"\xD0\xA3\xD0\xB4\xD0\xB0\xD0\xBB\xD0\xB8\xD1\x82\xD1\x8C?\">\xE2\x9C\x95</button></td></tr>\n");
     }
     if (n == 0)
         sb_add(&b, "<tr><td colspan=\"4\">(empty)</td></tr>\n");

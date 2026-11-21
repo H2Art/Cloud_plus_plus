@@ -17,14 +17,14 @@ static void on_signal(int sig)
 
 static int usage(void)
 {
-    fprintf(stderr, "usage: cloud --root DIR [--listen http://127.0.0.1:PORT]\n");
+    fprintf(stderr, "usage: cloud --root DIR [--static DIR] [--listen http://127.0.0.1:PORT]\n");
     return 2;
 }
 
 int main(int argc, char **argv)
 {
-    const char *root_arg = NULL, *listen_url = "http://127.0.0.1:8080";
-    char root[PATH_MAX];
+    const char *root_arg = NULL, *static_arg = NULL, *listen_url = "http://127.0.0.1:8080";
+    char root[PATH_MAX], static_dir[PATH_MAX];
     struct sigaction sa;
     struct stat st;
     int rc;
@@ -32,6 +32,8 @@ int main(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--root") && i + 1 < argc)
             root_arg = argv[++i];
+        else if (!strcmp(argv[i], "--static") && i + 1 < argc)
+            static_arg = argv[++i];
         else if (!strcmp(argv[i], "--listen") && i + 1 < argc)
             listen_url = argv[++i];
         else
@@ -56,6 +58,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (static_arg != NULL) {
+        if (!realpath(static_arg, static_dir) || stat(static_dir, &st) != 0 ||
+            !S_ISDIR(st.st_mode)) {
+            fprintf(stderr, "cloud: --static must be an existing directory\n");
+            return 1;
+        }
+    }
+
     umask(027);   /* файлы 0640, папки 0750: читает группа (nginx) */
 
     memset(&sa, 0, sizeof sa);
@@ -65,6 +75,6 @@ int main(int argc, char **argv)
     sigaction(SIGTERM, &sa, NULL);
     signal(SIGPIPE, SIG_IGN);
 
-    rc = server_run(root, listen_url, &g_stop);
+    rc = server_run(root, static_arg ? static_dir : NULL, listen_url, &g_stop);
     return rc == 0 ? 0 : 1;
 }
