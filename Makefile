@@ -39,6 +39,7 @@ $(BUILD)/tests/%: tests/%.c $(CORE_OBJ) $(HTTP_OBJ) tests/test.h $(CORE_HDR) $(H
 
 # ---- боевая сборка: make build  ->  build/release/cloud ----
 # Требует src/vendor/mongoose.c и mongoose.h. Без санитайзеров.
+# Статический бинарник для сервера: make build LDFLAGS=-static
 REL        := $(BUILD)/release
 REL_CFLAGS := -std=c11 -D_XOPEN_SOURCE=700 -Wall -Wextra -Werror -Wno-format-truncation \
               -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong
@@ -70,7 +71,7 @@ $(R_VENDOR): src/vendor/mongoose.c src/vendor/mongoose.h
 > $(CC) -std=gnu11 -D_GNU_SOURCE -O2 -w -c -o $@ $<
 
 $(REL)/cloud: $(R_CORE_OBJ) $(R_HTTP_OBJ) $(R_GLUE_OBJ) $(R_VENDOR)
-> $(CC) -o $@ $^ $(LDLIBS)
+> $(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
 clean:
 > rm -rf $(BUILD)

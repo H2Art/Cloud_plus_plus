@@ -1,0 +1,31 @@
+[Unit]
+Description=Cloud storage backend
+After=network.target
+# Не стартовать, пока не смонтирован диск хранилища
+RequiresMountsFor=/srv/storage
+
+[Service]
+User=cloud
+Group=cloud
+ExecStart=/usr/local/bin/cloud --root /srv/storage/files --listen http://127.0.0.1:8080
+UMask=0027
+Restart=on-failure
+RestartSec=2
+
+# Ограничения: на сервере всего 1 ГБ памяти
+MemoryMax=300M
+LimitNOFILE=1024
+
+# Песочница
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/srv/storage/files
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,4 @@
+#include "core/cleanup.h"
 #include "http/mg_server.h"
 #include <limits.h>
 #include <signal.h>
@@ -17,7 +18,7 @@ static void on_signal(int sig)
 
 static int usage(void)
 {
-    fprintf(stderr, "usage: cloud --root DIR [--static DIR] [--listen http://127.0.0.1:PORT]\n");
+    fprintf(stderr, "usage: cloud --root DIR [--static DIR] [--serve-downloads] [--listen http://127.0.0.1:PORT]\n");
     return 2;
 }
 
@@ -27,13 +28,16 @@ int main(int argc, char **argv)
     char root[PATH_MAX], static_dir[PATH_MAX];
     struct sigaction sa;
     struct stat st;
-    int rc;
+    struct server_opts opts;
+    int serve_downloads = 0, rc;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--root") && i + 1 < argc)
             root_arg = argv[++i];
         else if (!strcmp(argv[i], "--static") && i + 1 < argc)
             static_arg = argv[++i];
+        else if (!strcmp(argv[i], "--serve-downloads"))
+            serve_downloads = 1;
         else if (!strcmp(argv[i], "--listen") && i + 1 < argc)
             listen_url = argv[++i];
         else
@@ -66,6 +70,12 @@ int main(int argc, char **argv)
         }
     }
 
+    {
+        int stale = cleanup_tmp(root);
+        if (stale > 0)
+            fprintf(stderr, "cloud: removed %d stale temporary file(s)\n", stale);
+    }
+
     umask(027);   /* файлы 0640, папки 0750: читает группа (nginx) */
 
     memset(&sa, 0, sizeof sa);
@@ -75,6 +85,9 @@ int main(int argc, char **argv)
     sigaction(SIGTERM, &sa, NULL);
     signal(SIGPIPE, SIG_IGN);
 
-    rc = server_run(root, static_arg ? static_dir : NULL, listen_url, &g_stop);
+    opts.root = root;
+    opts.static_dir = static_arg ? static_dir : NULL;
+    opts.serve_downloads = serve_downloads;
+    rc = server_run(&opts, listen_url, &g_stop);
     return rc == 0 ? 0 : 1;
 }
