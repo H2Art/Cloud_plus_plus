@@ -14,6 +14,11 @@ enum {
 
 typedef struct upload upload;
 
+/* Проверяет, возможна ли загрузка (путь, файла ещё нет, есть место),
+ * ничего не создавая. Возвращает UPLOAD_OK или код ошибки. */
+int upload_precheck(const char *root, const char *rel, unsigned long long expected,
+                    unsigned long long reserve);
+
 /* Начинает загрузку файла root/rel размером expected байт.
  * Проверяет путь, что файла ещё нет и что есть место с запасом reserve.
  * Данные пишутся во временный файл (скрыт в listing). */

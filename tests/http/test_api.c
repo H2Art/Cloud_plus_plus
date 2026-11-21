@@ -136,6 +136,24 @@ int main(void)
     CHECK(access(base, F_OK) == 0);
     api_resp_free(&r);
 
+    /* предпроверка загрузки */
+    CHECK(call(&r, "POST", "/upcheck", "", "p=docs%2Fnew.bin&size=100", 1) == 200);
+    api_resp_free(&r);
+    CHECK(access(P("docs/new.bin"), F_OK) != 0);                         /* ничего не создано */
+    CHECK(call(&r, "POST", "/upcheck", "p=docs%2Fnew.bin&size=100", "", 0) == 403);
+    api_resp_free(&r);
+    CHECK(call(&r, "POST", "/upcheck", "", "p=docs%2Ffull%2Fx.txt&size=1", 1) == 409);
+    api_resp_free(&r);
+    CHECK(call(&r, "POST", "/upcheck", "", "p=nodir%2Fx&size=1", 1) == 404);
+    api_resp_free(&r);
+    CHECK(call(&r, "POST", "/upcheck", "", "p=..%2Fx&size=1", 1) == 400);
+    api_resp_free(&r);
+    CHECK(call(&r, "POST", "/upcheck", "", "p=x&size=999999999999", 1) == 413);
+    api_resp_free(&r);
+    CHECK(call(&r, "POST", "/upcheck", "", "p=x", 1) == 400);              api_resp_free(&r);
+    CHECK(call(&r, "POST", "/upcheck", "", "p=x&size=abc", 1) == 400);     api_resp_free(&r);
+    CHECK(call(&r, "GET", "/upcheck", "p=x&size=1", "", 1) == 405);        api_resp_free(&r);
+
     snprintf(cmd, sizeof cmd, "rm -rf %s", base);
     if (system(cmd) != 0) fprintf(stderr, "cleanup failed\n");
     DONE();

@@ -128,6 +128,18 @@ int main(void)
     CHECK(upload_begin(root, "full.txt", 1, ~0ULL, &u) == UPLOAD_EFULL && u == NULL);
     CHECK(count_entries(root) == 4);
 
+    /* precheck: ничего не создаёт */
+    {
+        int before = count_entries(root);
+        CHECK(upload_precheck(root, "docs/pre.txt", 5, 0) == UPLOAD_OK);
+        CHECK(upload_precheck(root, "docs/a.txt", 5, 0) == UPLOAD_EEXIST);
+        CHECK(upload_precheck(root, "nodir/x", 5, 0) == UPLOAD_ENOENT);
+        CHECK(upload_precheck(root, "../x", 5, 0) == UPLOAD_EINVAL);
+        CHECK(upload_precheck(root, "x", 5, ~0ULL) == UPLOAD_EFULL);
+        CHECK(upload_precheck(NULL, "x", 5, 0) == UPLOAD_EINVAL);
+        CHECK(count_entries(root) == before && count_entries(P("docs")) == 1);
+    }
+
     free(html);
     snprintf(cmd, sizeof cmd, "rm -rf %s", base);
     if (system(cmd) != 0) fprintf(stderr, "cleanup failed\n");

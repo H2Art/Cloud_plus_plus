@@ -19,11 +19,17 @@ void api_resp_free(api_resp *r);
  *   GET    /list   фрагмент для HTMX (p=путь)
  *   POST   /mkdir  dir=каталог, name=имя          (нужен hx=1)
  *   DELETE /rm     p=путь                         (нужен hx=1)
+ *   POST   /upcheck p=путь, size=байты            (нужен hx=1) предпроверка загрузки
  * Параметры берутся из query, для POST также из тела (form-urlencoded).
  * hx != 0, если пришёл заголовок "HX-Request: true"; без него изменяющие
  * запросы отклоняются (403): простая защита от CSRF.
  * Ответ заполняется всегда; r нужно освободить через api_resp_free. */
 void api_dispatch(const char *root, const char *method, const char *uri,
                   const char *query, const char *body, int hx, api_resp *r);
+
+/* Достаёт параметр key: сначала из query (percent-decode), затем из тела
+ * (form-urlencoded). body может быть NULL. 1 - найден, 0 - нет, -1 - ошибка. */
+int api_get_param(const char *query, const char *body, const char *key,
+                  char *out, size_t outsz);
 
 #endif

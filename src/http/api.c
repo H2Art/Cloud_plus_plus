@@ -4,6 +4,8 @@
 #include "core/listing.h"
 #include "core/path.h"
 #include "core/url.h"
+#include "http/limits.h"
+#include "http/ups.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,7 +83,7 @@ static int param_in(const char *s, const char *key, int form, char *out, size_t 
     return 0;
 }
 
-static int get_param(const char *query, const char *body, const char *key,
+int api_get_param(const char *query, const char *body, const char *key,
                      char *out, size_t outsz)
 {
     int r = param_in(query, key, 0, out, outsz);
@@ -154,7 +156,7 @@ void api_dispatch(const char *root, const char *method, const char *uri,
 
     if (!strcmp(uri, "/") || !strcmp(uri, "/list")) {
         if (strcmp(method, "GET")) { text(r, 405, "method not allowed"); return; }
-        g = get_param(query, body, "p", p, sizeof p);
+        g = api_get_param(query, body, "p", p, sizeof p);
         if (g < 0) { text(r, 400, "bad parameter"); return; }
         if (g == 0) p[0] = '\0';
         respond_dir(r, root, p, !strcmp(uri, "/"));
@@ -165,10 +167,10 @@ void api_dispatch(const char *root, const char *method, const char *uri,
         int rc, n;
         if (strcmp(method, "POST")) { text(r, 405, "method not allowed"); return; }
         if (!hx) { text(r, 403, "forbidden"); return; }
-        g = get_param(query, body, "dir", dir, sizeof dir);
+        g = api_get_param(query, body, "dir", dir, sizeof dir);
         if (g < 0) { text(r, 400, "bad parameter"); return; }
         if (g == 0) dir[0] = '\0';
-        g = get_param(query, body, "name", name, sizeof name);
+        g = api_get_param(query, body, "name", name, sizeof name);
         if (g <= 0 || !fileops_valid_name(name)) { text(r, 400, "bad name"); return; }
         n = snprintf(rel, sizeof rel, "%s%s%s", dir, *dir ? "/" : "", name);
         if (n < 0 || (size_t)n >= PATH_MAX) { text(r, 400, "path too long"); return; }
@@ -182,13 +184,29 @@ void api_dispatch(const char *root, const char *method, const char *uri,
         int rc;
         if (strcmp(method, "DELETE")) { text(r, 405, "method not allowed"); return; }
         if (!hx) { text(r, 403, "forbidden"); return; }
-        g = get_param(query, body, "p", p, sizeof p);
+        g = api_get_param(query, body, "p", p, sizeof p);
         if (g <= 0) { text(r, 400, "bad parameter"); return; }
         rc = fileops_split(p, dir, sizeof dir, name, sizeof name);
         if (rc != FOP_OK) { text(r, 400, "bad path"); return; }
         rc = fileops_remove(root, p);
         if (rc != FOP_OK) { text(r, status_of_fop(rc), "remove failed"); return; }
         respond_dir(r, root, dir, 0);
+        return;
+    }
+
+    if (!strcmp(uri, "/upcheck")) {
+        char sz[32];
+        int st;
+        if (strcmp(method, "POST")) { text(r, 405, "method not allowed"); return; }
+        g = api_get_param(query, body, "p", p, sizeof p);
+        if (g <= 0) { text(r, 400, "bad parameter"); return; }
+        g = api_get_param(query, body, "size", sz, sizeof sz);
+        if (g <= 0) { text(r, 400, "bad parameter"); return; }
+        st = ups_precheck(root, p, sz, hx, LIMIT_MAX_UPLOAD, LIMIT_RESERVE);
+        if (st == 0)
+            text(r, 200, "ok");
+        else
+            text(r, st, "upload not possible");
         return;
     }
 

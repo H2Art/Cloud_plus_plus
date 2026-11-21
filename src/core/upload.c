@@ -27,11 +27,33 @@ static int map_fop(int rc)
     }
 }
 
+int upload_precheck(const char *root, const char *rel, unsigned long long expected,
+                    unsigned long long reserve)
+{
+    char dir[PATH_MAX], name[NAME_MAX + 1];
+    quota_info q;
+    int rc;
+
+    if (!root || !rel)
+        return UPLOAD_EINVAL;
+    if (fileops_split(rel, dir, sizeof dir, name, sizeof name) != FOP_OK)
+        return UPLOAD_EINVAL;
+    rc = fileops_exists(root, rel);
+    if (rc == 1)
+        return UPLOAD_EEXIST;
+    if (rc < 0)
+        return map_fop(rc);
+    if (quota_get(root, &q) != 0)
+        return UPLOAD_EIO;
+    if (!quota_check(&q, expected, reserve))
+        return UPLOAD_EFULL;
+    return UPLOAD_OK;
+}
+
 int upload_begin(const char *root, const char *rel, unsigned long long expected,
                  unsigned long long reserve, upload **out)
 {
     upload *u;
-    quota_info q;
     int rc;
 
     if (!out)
@@ -40,6 +62,10 @@ int upload_begin(const char *root, const char *rel, unsigned long long expected,
     if (!root || !rel || strlen(root) >= PATH_MAX)
         return UPLOAD_EINVAL;
 
+    rc = upload_precheck(root, rel, expected, reserve);
+    if (rc != UPLOAD_OK)
+        return rc;
+
     u = calloc(1, sizeof *u);
     if (!u)
         return UPLOAD_EIO;
@@ -47,19 +73,15 @@ int upload_begin(const char *root, const char *rel, unsigned long long expected,
     u->expected = expected;
     memcpy(u->root, root, strlen(root) + 1);
 
-    rc = fileops_split(rel, u->dir, sizeof u->dir, u->name, sizeof u->name);
-    if (rc != FOP_OK) { free(u); return UPLOAD_EINVAL; }
-
-    rc = fileops_exists(root, rel);
-    if (rc == 1) { free(u); return UPLOAD_EEXIST; }
-    if (rc < 0)  { free(u); return map_fop(rc); }
-
-    if (quota_get(root, &q) != 0) { free(u); return UPLOAD_EIO; }
-    if (!quota_check(&q, expected, reserve)) { free(u); return UPLOAD_EFULL; }
-
+    if (fileops_split(rel, u->dir, sizeof u->dir, u->name, sizeof u->name) != FOP_OK) {
+        free(u);
+        return UPLOAD_EINVAL;
+    }
     rc = fileops_create_tmp(root, u->dir, &u->fd, u->tmp, sizeof u->tmp);
-    if (rc != FOP_OK) { free(u); return map_fop(rc); }
-
+    if (rc != FOP_OK) {
+        free(u);
+        return map_fop(rc);
+    }
     *out = u;
     return UPLOAD_OK;
 }
