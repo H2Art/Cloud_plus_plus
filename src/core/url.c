@@ -39,14 +39,16 @@ fail:
     return -1;
 }
 
-int url_decode(const char *in, char *out, size_t outsz)
+static int decode(const char *in, char *out, size_t outsz, int form)
 {
     size_t o = 0;
     if (!in || !out || outsz == 0)
         return -1;
     for (; *in; in++) {
         unsigned char c = (unsigned char)*in;
-        if (c == '%') {
+        if (form && c == '+') {
+            c = ' ';
+        } else if (c == '%') {
             int h = hexv(in[1]);
             int l = h < 0 ? -1 : hexv(in[2]);
             if (h < 0 || l < 0) goto fail;
@@ -62,4 +64,14 @@ int url_decode(const char *in, char *out, size_t outsz)
 fail:
     out[o] = '\0';
     return -1;
+}
+
+int url_decode(const char *in, char *out, size_t outsz)
+{
+    return decode(in, out, outsz, 0);
+}
+
+int url_decode_form(const char *in, char *out, size_t outsz)
+{
+    return decode(in, out, outsz, 1);
 }

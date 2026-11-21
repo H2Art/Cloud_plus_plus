@@ -40,5 +40,10 @@ int main(void)
         CHECK(url_encode(s, b, sizeof b) == 0);
         CHECK(url_decode(b, c, sizeof c) == 0 && !strcmp(c, s));
     }
+    /* form-декодирование */
+    CHECK(url_decode_form("a+b%20c", b, sizeof b) == 0 && !strcmp(b, "a b c"));
+    CHECK(url_decode_form("a%2Bb", b, sizeof b) == 0 && !strcmp(b, "a+b"));
+    CHECK(url_decode_form("%zz", b, sizeof b) == -1);
+    CHECK(url_decode_form("%00", b, sizeof b) == -1);
     DONE();
 }

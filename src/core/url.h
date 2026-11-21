@@ -9,4 +9,7 @@ int url_encode(const char *in, char *out, size_t outsz);
  * -1 при неверной последовательности %, при %00 или малом out. */
 int url_decode(const char *in, char *out, size_t outsz);
 
+/* Как url_decode, но '+' превращается в пробел (application/x-www-form-urlencoded). */
+int url_decode_form(const char *in, char *out, size_t outsz);
+
 #endif
