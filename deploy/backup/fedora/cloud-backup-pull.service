@@ -2,6 +2,7 @@
 Description=Pull Cloud++ restic repository from server
 
 [Service]
+EnvironmentFile=-%h/.config/cloud-backup.env
 Type=oneshot
 ExecStart=%h/.local/bin/cloud-pull-backup.sh
 Nice=10

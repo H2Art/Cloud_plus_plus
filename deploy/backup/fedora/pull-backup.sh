@@ -1,6 +1,7 @@
 #!/bin/sh
 # Забирает restic-репозиторий с сервера на этот компьютер (pull, только чтение).
 # Ключ ограничен на сервере через rrsync -ro /srv/backup.
+# Адрес сервера задайте в ~/.config/cloud-backup.env: CLOUD_BACKUP_HOST=root@IP
 set -eu
 
 HOST=${CLOUD_BACKUP_HOST:-root@SERVER_IP}
