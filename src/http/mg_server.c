@@ -4,7 +4,9 @@
 #include "http/api.h"
 #include "http/limits.h"
 #include "http/ups.h"
+#include "core/fileops.h"
 #include "core/path.h"
+#include "core/url.h"
 #include "mongoose.h"
 #include <limits.h>
 #include <stdbool.h>
@@ -47,7 +49,40 @@ static void reply_text(struct mg_connection *c, int status, const char *msg)
 struct srv_cfg {
     const char *root;
     const char *static_dir;   /* NULL: статику отдаёт nginx */
+    int serve_downloads;
 };
+
+/* Dev-режим: GET /dl/<путь> отдаёт файл из хранилища как вложение.
+ * Временные .part-* и всё вне корня недоступны (path_resolve). */
+static void serve_download(struct mg_connection *c, struct mg_http_message *hm,
+                           const char *root, const char *rel, const char *method)
+{
+    char dec[MAX_URI], path[PATH_MAX];
+    const char *base;
+    struct stat st;
+    struct mg_http_serve_opts opts;
+
+    if (strcmp(method, "GET") != 0) {
+        reply_text(c, 405, "method not allowed");
+        return;
+    }
+    if (url_decode(rel, dec, sizeof dec) != 0 ||
+        path_resolve(root, dec, path, sizeof path) != PATH_OK ||
+        stat(path, &st) != 0 || !S_ISREG(st.st_mode)) {
+        reply_text(c, 404, "not found");
+        return;
+    }
+    base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    if (fileops_is_tmp_name(base)) {
+        reply_text(c, 404, "not found");
+        return;
+    }
+    memset(&opts, 0, sizeof opts);
+    opts.extra_headers = "Content-Disposition: attachment\r\n"
+                         "X-Content-Type-Options: nosniff\r\n";
+    mg_http_serve_file(c, hm, path, &opts);
+}
 
 /* Отдаёт файл из static_dir (только GET, только обычные файлы внутри каталога). */
 static void serve_static(struct mg_connection *c, struct mg_http_message *hm,
@@ -173,6 +208,11 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
         return;
     }
 
+    if (cfg->serve_downloads && strncmp(uri, "/dl/", 4) == 0) {
+        serve_download(c, hm, cfg->root, uri + 4, method);
+        return;
+    }
+
     api_dispatch(cfg->root, method, uri, query, body, hx, &r);
 
     snprintf(hdr, sizeof hdr, "Content-Type: %s\r\n" SEC_HEADERS,
@@ -181,14 +221,17 @@ static void on_event(struct mg_connection *c, int ev, void *ev_data)
     api_resp_free(&r);
 }
 
-int server_run(const char *root, const char *static_dir, const char *listen_url,
+int server_run(const struct server_opts *opts, const char *listen_url,
                volatile sig_atomic_t *stop)
 {
     struct mg_mgr mgr;
     struct srv_cfg cfg;
 
+    const char *root = opts->root;
+
     cfg.root = root;
-    cfg.static_dir = static_dir;
+    cfg.static_dir = opts->static_dir;
+    cfg.serve_downloads = opts->serve_downloads;
 
     mg_mgr_init(&mgr);
     mg_log_set(MG_LL_INFO);
