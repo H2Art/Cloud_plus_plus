@@ -55,7 +55,10 @@ Makefile: `.RECIPEPREFIX := >`, флаги `-std=c11 -D_XOPEN_SOURCE=700 -Werror
 ## Релиз 1.0 (2026-11-22)
 Развёрнуто на HostVDS (SERVER_IP): nginx (HTTPS самоподписанный, basic auth) -> C-бэкенд (systemd) -> loop-образ 2 ГБ.
 Проверено на сервере: nginx -t, сборка статического бинарника, служба, вход по паролю, загрузка файлов.
-Ещё не проверено: реальный ENOSPC, нагрузка на 1 ГБ RAM, бэкапы (не настроены).
+Бэкапы настроены и проверены (2026-11-22): restic на сервере по systemd-таймеру в 03:30 (deploy/backup/), Fedora забирает
+repo по rsync через ограниченный ключ ~/.ssh/cloud_backup (rrsync -ro) пользовательским таймером в 12:00 (deploy/backup/fedora/).
+Восстановление проверено. Пароль restic хранится вне сервера (~/Sensitive и менеджер паролей).
+Ещё не проверено: реальный ENOSPC, нагрузка на 1 ГБ RAM.
 Выкладка: `rm -f build/release/cloud && deploy/deploy.sh root@IP` (make не пересобирает при смене LDFLAGS).
 На сервере уже живёт Docker (VPN amnezia-awg2): ufw не включали, чтобы не сломать маршрутизацию.
 

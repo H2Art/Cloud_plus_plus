@@ -1,0 +1,7 @@
+[Unit]
+Description=Pull Cloud++ restic repository from server
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/cloud-pull-backup.sh
+Nice=10
